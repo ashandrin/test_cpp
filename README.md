@@ -32,7 +32,7 @@ Where:
 
 ## Chatbot
 
-A chatbot is available to help understand this codebase. To use the chatbot:
+An AI-powered chatbot is available to help understand this codebase. To use the chatbot:
 
 ```
 cd chatbot
@@ -46,4 +46,6 @@ The chatbot can answer questions about:
 - How to compile and use the software
 - Specific concepts like kernels, convolution, etc.
 
-The chatbot is available in both English and Japanese.
+The chatbot is available in both English and Japanese and uses RAG (Retrieval Augmented Generation) technology to provide detailed explanations based on the source code.
+
+For full functionality, an OpenAI API key is required. See the chatbot README for setup instructions.

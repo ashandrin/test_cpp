@@ -1,8 +1,16 @@
 #!/bin/bash
 
+if [ ! -f .env ]; then
+    if [ -f .env.example ]; then
+        echo "No .env file found. Creating from .env.example..."
+        cp .env.example .env
+        echo "Please edit the .env file to add your OpenAI API key for enhanced functionality."
+        echo ""
+    fi
+fi
 
 echo "===================================================="
-echo "Gaussian Filter Chatbot / ガウスフィルターチャットボット"
+echo "Gaussian Filter Chatbot (RAG-Enhanced) / ガウスフィルターチャットボット（RAG強化版）"
 echo "===================================================="
 echo "Please select your language / 言語を選択してください:"
 echo "1. English"

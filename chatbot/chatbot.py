@@ -1,22 +1,27 @@
 #!/usr/bin/env python3
 """
 A chatbot that explains the Gaussian filter implementation in the test_cpp repository.
+Enhanced with RAG capabilities for more advanced responses.
 """
 
 import re
 import sys
+import os
+from dotenv import load_dotenv
 from knowledge_base import KNOWLEDGE_BASE, DETAILED_EXPLANATIONS
+from rag_chatbot import RAGChatbot
 
-class GaussianFilterChatbot:
-    def __init__(self):
-        self.knowledge_base = KNOWLEDGE_BASE
-        self.detailed_explanations = DETAILED_EXPLANATIONS
-        self.greeting_shown = False
+load_dotenv()
+
+class GaussianFilterChatbot(RAGChatbot):
+    def __init__(self, repo_path: str = "../"):
+        """Initialize the chatbot with the given repository path."""
+        super().__init__(repo_path=repo_path, language="en")
         
     def show_greeting(self):
         """Display the initial greeting message."""
         print("="*80)
-        print("Gaussian Filter Chatbot")
+        print("Gaussian Filter Chatbot (RAG-Enhanced)")
         print("="*80)
         print("Welcome! I can help you understand the Gaussian filter implementation")
         print("in the test_cpp repository. You can ask me about:")
@@ -27,11 +32,17 @@ class GaussianFilterChatbot:
         print("- Specific concepts like kernels, convolution, etc.")
         print("\nType 'exit', 'quit', or 'bye' to end the conversation.")
         print("Type 'help' to see this message again.")
+        
+        if os.getenv("OPENAI_API_KEY") and self.llm:
+            print("\n[AI-powered responses enabled]")
+        else:
+            print("\n[Running in basic mode - set OPENAI_API_KEY for AI-powered responses]")
+            
         print("="*80)
         self.greeting_shown = True
     
-    def get_response(self, user_input):
-        """Process user input and generate a response."""
+    def get_response_with_pattern_matching(self, user_input):
+        """Process user input and generate a response using pattern matching."""
         user_input = user_input.lower().strip()
         
         if user_input in ['exit', 'quit', 'bye']:
@@ -71,6 +82,24 @@ class GaussianFilterChatbot:
         return ("I'm not sure how to answer that. You can ask me about the project, "
                 "code structure, Gaussian kernel function, main function, concepts, "
                 "usage, or dependencies. Type 'help' for more information.")
+                
+    def get_response(self, user_input):
+        """Get response to user input, using RAG if available."""
+        user_input = user_input.lower().strip()
+        
+        if user_input in ['exit', 'quit', 'bye']:
+            return "Goodbye! I hope I helped you understand the Gaussian filter implementation."
+        
+        if user_input in ['help', '?']:
+            self.show_greeting()
+            return ""
+            
+        rag_response = self.get_response_with_rag(user_input)
+        
+        if not rag_response:
+            return self.get_response_with_pattern_matching(user_input)
+            
+        return rag_response
     
     def _get_project_info(self):
         """Get information about the project."""

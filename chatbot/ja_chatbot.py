@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """
 test_cppリポジトリのガウスフィルター実装を説明するチャットボット。
+RAG機能を使用して高度な応答を生成します。
 """
 
 import re
 import sys
+import os
+from dotenv import load_dotenv
 from ja_knowledge_base import JA_KNOWLEDGE_BASE, JA_DETAILED_EXPLANATIONS
+from rag_chatbot import RAGChatbot
 
-class GaussianFilterChatbotJa:
-    def __init__(self):
+load_dotenv()
+
+class GaussianFilterChatbotJa(RAGChatbot):
+    def __init__(self, repo_path: str = "../"):
+        """指定されたリポジトリパスでチャットボットを初期化します。"""
+        super().__init__(repo_path=repo_path, language="ja")
         self.knowledge_base = JA_KNOWLEDGE_BASE
         self.detailed_explanations = JA_DETAILED_EXPLANATIONS
-        self.greeting_shown = False
         
     def show_greeting(self):
         """初期挨拶メッセージを表示します。"""
         print("="*80)
-        print("ガウスフィルターチャットボット")
+        print("ガウスフィルターチャットボット（RAG強化版）")
         print("="*80)
         print("ようこそ！test_cppリポジトリのガウスフィルター実装について理解するお手伝いをします。")
         print("以下について質問できます：")
@@ -27,11 +34,17 @@ class GaussianFilterChatbotJa:
         print("- カーネル、畳み込みなどの特定の概念")
         print("\n会話を終了するには「終了」、「quit」、または「bye」と入力してください。")
         print("このメッセージをもう一度表示するには「ヘルプ」と入力してください。")
+        
+        if os.getenv("OPENAI_API_KEY") and self.llm:
+            print("\n[AI応答機能が有効です]")
+        else:
+            print("\n[基本モードで実行中 - AI応答機能を有効にするにはOPENAI_API_KEYを設定してください]")
+            
         print("="*80)
         self.greeting_shown = True
     
-    def get_response(self, user_input):
-        """ユーザー入力を処理し、応答を生成します。"""
+    def get_response_with_pattern_matching(self, user_input):
+        """パターンマッチングを使用してユーザー入力を処理し、応答を生成します。"""
         user_input = user_input.lower().strip()
         
         if user_input in ['終了', 'quit', 'bye', 'exit']:
@@ -71,6 +84,24 @@ class GaussianFilterChatbotJa:
         return ("その質問にどう答えるべきかわかりません。プロジェクト、コード構造、"
                 "ガウスカーネル関数、メイン関数、概念、使用方法、または依存関係について"
                 "質問できます。詳細については「ヘルプ」と入力してください。")
+                
+    def get_response(self, user_input):
+        """ユーザー入力に対する応答を取得し、可能であればRAGを使用します。"""
+        user_input = user_input.lower().strip()
+        
+        if user_input in ['終了', 'quit', 'bye', 'exit']:
+            return "さようなら！ガウスフィルター実装の理解にお役に立てれば幸いです。"
+        
+        if user_input in ['ヘルプ', 'help', '?']:
+            self.show_greeting()
+            return ""
+            
+        rag_response = self.get_response_with_rag(user_input)
+        
+        if not rag_response:
+            return self.get_response_with_pattern_matching(user_input)
+            
+        return rag_response
     
     def _get_project_info(self):
         """プロジェクトに関する情報を取得します。"""
