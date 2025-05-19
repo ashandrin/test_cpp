@@ -73,11 +73,23 @@ class VectorStore:
         if not os.path.exists(self.persist_directory):
             return False
             
+        if not os.path.exists(os.path.join(self.persist_directory, "chroma.sqlite3")):
+            print(f"No valid vector database found in {self.persist_directory}")
+            return False
+            
         try:
             self.db = Chroma(
                 persist_directory=self.persist_directory,
                 embedding_function=self.embeddings
             )
+            
+            # Verify the database has documents
+            collection_count = len(self.db._collection.get()['ids'])
+            if collection_count == 0:
+                print(f"Vector database exists but contains no documents in {self.persist_directory}")
+                return False
+                
+            print(f"Loaded existing vector database with {collection_count} documents from {self.persist_directory}")
             return True
         except Exception as e:
             print(f"Error loading index: {e}")
