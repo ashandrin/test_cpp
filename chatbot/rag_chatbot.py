@@ -113,27 +113,35 @@ class RAGChatbot:
             
     def initialize_vector_store(self):
         """Initialize the vector store with repository documents if not already done."""
-        if self.vector_store.load_existing_index():
+        force_reindex = os.getenv("FORCE_REINDEX", "False").lower() in ("true", "1", "yes")
+        
+        if not force_reindex and self.vector_store.load_existing_index():
+            print(f"Using existing vector index in {self.vector_store.persist_directory}")
             return
             
+        print(f"Creating new vector index in {self.vector_store.persist_directory}")
         loader = SourceCodeLoader(self.repo_path)
         documents = loader.load_source_files()
         
         if not documents:
-            print("Warning: No documents found in repository.")
+            print(f"Warning: No documents found in repository: {self.repo_path}")
             return
             
         chunks = loader.split_documents(documents)
         
+        if not chunks:
+            print("Warning: No document chunks created.")
+            return
+            
+        print(f"Indexing {len(chunks)} document chunks...")
         self.vector_store.index_documents(chunks)
-        print(f"Indexed {len(chunks)} document chunks in vector store.")
+        print(f"Indexed {len(chunks)} document chunks in vector store: {self.vector_store.persist_directory}")
         
         if not self.llm:
             if os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
                 self.setup_llm_azure()
             elif os.getenv("OPENAI_API_KEY"):
                 self.setup_llm()
-        
     def get_response_with_rag(self, user_input: str) -> str:
         """
         Get response using RAG if available.

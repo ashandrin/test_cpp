@@ -83,6 +83,18 @@ The chatbot uses two approaches to answer questions:
    - Retrieves relevant information from a predefined knowledge base
    - Returns a structured response based on the identified topic
 
+## Troubleshooting
+
+### Vector Store Reindexing
+
+If you experience issues with the RAG responses, you may need to reindex the vector store:
+
+```
+python3 reindex_vector_store.py
+```
+
+This will force the chatbot to recreate the vector embeddings for the source code, which may resolve issues with missing or outdated vector data.
+
 ## Example Questions
 
 - "What is this project about?"
