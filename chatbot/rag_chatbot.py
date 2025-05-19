@@ -9,7 +9,14 @@ from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from pathlib import Path
 
-from langchain_openai import ChatOpenAI
+if os.getenv("HTTP_PROXY"):
+    os.environ["HTTP_PROXY"] = os.getenv("HTTP_PROXY")
+if os.getenv("HTTPS_PROXY"):
+    os.environ["HTTPS_PROXY"] = os.getenv("HTTPS_PROXY")
+if os.getenv("NO_PROXY"):
+    os.environ["NO_PROXY"] = os.getenv("NO_PROXY")
+
+from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 
@@ -45,7 +52,9 @@ class RAGChatbot:
         self.llm = None
         self.chain = None
         self.memory = None
-        if os.getenv("OPENAI_API_KEY"):
+        if os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
+            self.setup_llm_azure()
+        elif os.getenv("OPENAI_API_KEY"):
             self.setup_llm()
         
         self.initialize_vector_store()
@@ -73,6 +82,35 @@ class RAGChatbot:
             memory=self.memory
         )
         
+    def setup_llm_azure(self):
+        """Set up the Azure OpenAI language model and conversation chain."""
+        try:
+            self.llm = AzureChatOpenAI(
+                azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "chat"),
+                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2023-05-15"),
+                temperature=0.5
+            )
+            
+            self.memory = ConversationBufferMemory(
+                memory_key="chat_history",
+                return_messages=True
+            )
+            
+            if not self.vector_store.db:
+                if not self.vector_store.load_existing_index():
+                    print("Warning: No vector index available. Running with limited capabilities.")
+                    return
+            
+            self.chain = ConversationalRetrievalChain.from_llm(
+                llm=self.llm,
+                retriever=self.vector_store.db.as_retriever(),
+                memory=self.memory
+            )
+        except Exception as e:
+            print(f"Error setting up Azure OpenAI: {e}")
+            
     def initialize_vector_store(self):
         """Initialize the vector store with repository documents if not already done."""
         if self.vector_store.load_existing_index():
@@ -90,8 +128,11 @@ class RAGChatbot:
         self.vector_store.index_documents(chunks)
         print(f"Indexed {len(chunks)} document chunks in vector store.")
         
-        if not self.llm and os.getenv("OPENAI_API_KEY"):
-            self.setup_llm()
+        if not self.llm:
+            if os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
+                self.setup_llm_azure()
+            elif os.getenv("OPENAI_API_KEY"):
+                self.setup_llm()
         
     def get_response_with_rag(self, user_input: str) -> str:
         """

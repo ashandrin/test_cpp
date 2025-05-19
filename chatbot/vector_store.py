@@ -7,8 +7,15 @@ import os
 from typing import List, Dict, Optional
 from pathlib import Path
 
+if os.getenv("HTTP_PROXY"):
+    os.environ["HTTP_PROXY"] = os.getenv("HTTP_PROXY")
+if os.getenv("HTTPS_PROXY"):
+    os.environ["HTTPS_PROXY"] = os.getenv("HTTPS_PROXY")
+if os.getenv("NO_PROXY"):
+    os.environ["NO_PROXY"] = os.getenv("NO_PROXY")
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, AzureOpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 
 class VectorStore:
@@ -26,7 +33,14 @@ class VectorStore:
         
         os.makedirs(persist_directory, exist_ok=True)
         
-        if os.getenv("OPENAI_API_KEY") and embedding_model:
+        if os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
+            self.embeddings = AzureOpenAIEmbeddings(
+                azure_deployment=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME", "embedding"),
+                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+                api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2023-05-15")
+            )
+        elif os.getenv("OPENAI_API_KEY") and embedding_model:
             self.embeddings = OpenAIEmbeddings(model=embedding_model)
         else:
             self.embeddings = HuggingFaceEmbeddings(

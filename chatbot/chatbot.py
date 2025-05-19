@@ -33,10 +33,12 @@ class GaussianFilterChatbot(RAGChatbot):
         print("\nType 'exit', 'quit', or 'bye' to end the conversation.")
         print("Type 'help' to see this message again.")
         
-        if os.getenv("OPENAI_API_KEY") and self.llm:
-            print("\n[AI-powered responses enabled]")
+        if (os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT") and self.llm):
+            print("\n[AI-powered responses enabled with Azure OpenAI]")
+        elif os.getenv("OPENAI_API_KEY") and self.llm:
+            print("\n[AI-powered responses enabled with OpenAI]")
         else:
-            print("\n[Running in basic mode - set OPENAI_API_KEY for AI-powered responses]")
+            print("\n[Running in basic mode - set OPENAI_API_KEY or AZURE_OPENAI_API_KEY for AI-powered responses]")
             
         print("="*80)
         self.greeting_shown = True

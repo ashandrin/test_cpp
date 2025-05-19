@@ -36,6 +36,23 @@ cp .env.example .env
 OPENAI_API_KEY=your_api_key_here
 ```
 
+Or configure Azure OpenAI:
+
+```
+AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name_here
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME=your_embedding_deployment_name_here
+```
+
+4. (Optional) Configure proxy settings:
+
+```
+HTTP_PROXY=your_http_proxy_here
+HTTPS_PROXY=your_https_proxy_here
+NO_PROXY=localhost,127.0.0.1
+```
+
 ## Usage
 
 To run the chatbot:

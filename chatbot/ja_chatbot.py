@@ -35,10 +35,12 @@ class GaussianFilterChatbotJa(RAGChatbot):
         print("\n会話を終了するには「終了」、「quit」、または「bye」と入力してください。")
         print("このメッセージをもう一度表示するには「ヘルプ」と入力してください。")
         
-        if os.getenv("OPENAI_API_KEY") and self.llm:
-            print("\n[AI応答機能が有効です]")
+        if (os.getenv("AZURE_OPENAI_API_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT") and self.llm):
+            print("\n[Azure OpenAIを使用したAI応答機能が有効です]")
+        elif os.getenv("OPENAI_API_KEY") and self.llm:
+            print("\n[OpenAIを使用したAI応答機能が有効です]")
         else:
-            print("\n[基本モードで実行中 - AI応答機能を有効にするにはOPENAI_API_KEYを設定してください]")
+            print("\n[基本モードで実行中 - AI応答機能を有効にするにはOPENAI_API_KEYまたはAZURE_OPENAI_API_KEYを設定してください]")
             
         print("="*80)
         self.greeting_shown = True
