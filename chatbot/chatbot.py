@@ -96,12 +96,7 @@ class GaussianFilterChatbot(RAGChatbot):
             self.show_greeting()
             return ""
             
-        rag_response = self.get_response_with_rag(user_input)
-        
-        if not rag_response:
-            return self.get_response_with_pattern_matching(user_input)
-            
-        return rag_response
+        return super().get_response(user_input)
     
     def _get_project_info(self):
         """Get information about the project."""
