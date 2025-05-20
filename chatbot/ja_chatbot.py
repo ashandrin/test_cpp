@@ -97,8 +97,16 @@ class GaussianFilterChatbotJa(RAGChatbot):
         if user_input in ['ヘルプ', 'help', '?']:
             self.show_greeting()
             return ""
+        
+        agent_response = self.get_response_with_agent(user_input)
+        if agent_response:
+            return agent_response
             
-        return super().get_response(user_input)
+        rag_response = self.get_response_with_rag(user_input)
+        if not rag_response:
+            return self.get_response_with_pattern_matching(user_input)
+            
+        return rag_response
     
     def _get_project_info(self):
         """プロジェクトに関する情報を取得します。"""
