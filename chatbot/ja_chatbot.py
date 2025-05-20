@@ -97,9 +97,12 @@ class GaussianFilterChatbotJa(RAGChatbot):
         if user_input in ['ヘルプ', 'help', '?']:
             self.show_greeting()
             return ""
+        
+        agent_response = self.get_response_with_agent(user_input)
+        if agent_response:
+            return agent_response
             
         rag_response = self.get_response_with_rag(user_input)
-        
         if not rag_response:
             return self.get_response_with_pattern_matching(user_input)
             
