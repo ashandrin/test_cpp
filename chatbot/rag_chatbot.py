@@ -174,6 +174,74 @@ class RAGChatbot:
         """
         raise NotImplementedError("Subclasses must implement this method.")
         
+    def get_response_with_agent(self, user_input: str) -> str:
+        """
+        Get response using agent capabilities for questions not handled by RAG or pattern matching.
+        Currently supports:
+        - Counting lines of code in the repository
+        
+        Args:
+            user_input: User's input text
+            
+        Returns:
+            Response string from the agent
+        """
+        if self._is_line_count_question(user_input):
+            return self._count_code_lines()
+            
+        
+        return None
+        
+    def _is_line_count_question(self, user_input: str) -> bool:
+        """Check if the question is about code line count."""
+        if self.language == "ja":
+            return re.search(r'(行数|コード|ソース|ソフトウエア).*(数|教えて|カウント|数える)', user_input.lower()) is not None
+        else:  # en
+            return re.search(r'(line|code|source).*(count|how many|number)', user_input.lower()) is not None
+            
+    def _count_code_lines(self) -> str:
+        """Count lines of code in the repository."""
+        extensions = ['.cpp', '.h', 'Makefile']
+        line_counts = {}
+        total_lines = 0
+        
+        for extension in extensions:
+            if extension == 'Makefile':
+                makefile_path = Path(self.repo_path) / 'Makefile'
+                if makefile_path.exists():
+                    try:
+                        with open(makefile_path, 'r') as f:
+                            lines = len(f.readlines())
+                            line_counts['Makefile'] = lines
+                            total_lines += lines
+                    except Exception as e:
+                        print(f"Error counting lines in {makefile_path}: {e}")
+                continue
+                
+            for file_path in Path(self.repo_path).glob(f"**/*{extension}"):
+                if 'chatbot' in str(file_path):
+                    continue
+                    
+                try:
+                    with open(file_path, 'r') as f:
+                        lines = len(f.readlines())
+                        line_counts[str(file_path.relative_to(self.repo_path))] = lines
+                        total_lines += lines
+                except Exception as e:
+                    print(f"Error counting lines in {file_path}: {e}")
+        
+        if self.language == "ja":
+            response = f"ソフトウエアの合計行数は {total_lines} 行です。\n\n"
+            response += "ファイル別の行数:\n"
+        else:  # en
+            response = f"The total number of lines of code in the software is {total_lines}.\n\n"
+            response += "Lines of code by file:\n"
+            
+        for file, count in line_counts.items():
+            response += f"- {file}: {count}\n"
+            
+        return response
+        
     def get_response(self, user_input: str) -> str:
         """
         Get response to user input.
@@ -187,7 +255,15 @@ class RAGChatbot:
         rag_response = self.get_response_with_rag(user_input)
         
         if not rag_response:
-            return self.get_response_with_pattern_matching(user_input)
+            pattern_response = self.get_response_with_pattern_matching(user_input)
+            
+            if not pattern_response:
+                agent_response = self.get_response_with_agent(user_input)
+                if agent_response:
+                    return agent_response
+                return pattern_response
+                
+            return pattern_response
             
         return rag_response
         
