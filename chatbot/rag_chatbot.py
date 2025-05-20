@@ -197,7 +197,13 @@ class RAGChatbot:
         if self.language == "ja":
             return re.search(r'(行数|コード|ソース|ソフトウエア).*(数|教えて|カウント|数える)', user_input.lower()) is not None
         else:  # en
-            return re.search(r'(line|code|source).*(count|how many|number)', user_input.lower()) is not None
+            if re.search(r'how many (line|code)', user_input.lower()) is not None:
+                return True
+            if re.search(r'(line|code).*(count|number)', user_input.lower()) is not None:
+                return True
+            if re.search(r'(count|tell me).*(line|code)', user_input.lower()) is not None:
+                return True
+            return False
             
     def _count_code_lines(self) -> str:
         """Count lines of code in the repository."""
