@@ -7,6 +7,7 @@ RAG機能を使用して高度な応答を生成します。
 import re
 import sys
 import os
+from typing import List, Optional
 from dotenv import load_dotenv
 from ja_knowledge_base import JA_KNOWLEDGE_BASE, JA_DETAILED_EXPLANATIONS
 from rag_chatbot import RAGChatbot
@@ -14,9 +15,9 @@ from rag_chatbot import RAGChatbot
 load_dotenv()
 
 class GaussianFilterChatbotJa(RAGChatbot):
-    def __init__(self, repo_path: str = "../"):
-        """指定されたリポジトリパスでチャットボットを初期化します。"""
-        super().__init__(repo_path=repo_path, language="ja")
+    def __init__(self, repo_path: str = "../", code_paths: Optional[List[str]] = None):
+        """指定されたリポジトリパスとオプションのコードパスでチャットボットを初期化します。"""
+        super().__init__(repo_path=repo_path, language="ja", code_paths=code_paths)
         self.knowledge_base = JA_KNOWLEDGE_BASE
         self.detailed_explanations = JA_DETAILED_EXPLANATIONS
         
