@@ -7,6 +7,7 @@ Enhanced with RAG capabilities for more advanced responses.
 import re
 import sys
 import os
+from typing import List, Optional
 from dotenv import load_dotenv
 from knowledge_base import KNOWLEDGE_BASE, DETAILED_EXPLANATIONS
 from rag_chatbot import RAGChatbot
@@ -14,9 +15,9 @@ from rag_chatbot import RAGChatbot
 load_dotenv()
 
 class GaussianFilterChatbot(RAGChatbot):
-    def __init__(self, repo_path: str = "../"):
-        """Initialize the chatbot with the given repository path."""
-        super().__init__(repo_path=repo_path, language="en")
+    def __init__(self, repo_path: str = "../", code_paths: Optional[List[str]] = None):
+        """Initialize the chatbot with the given repository path and optional code paths."""
+        super().__init__(repo_path=repo_path, language="en", code_paths=code_paths)
         
     def show_greeting(self):
         """Display the initial greeting message."""

@@ -5,16 +5,19 @@ Base class for RAG-enhanced Gaussian Filter chatbot.
 
 import os
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union, Any
 from dotenv import load_dotenv
 from pathlib import Path
 
-if os.getenv("HTTP_PROXY"):
-    os.environ["HTTP_PROXY"] = os.getenv("HTTP_PROXY")
-if os.getenv("HTTPS_PROXY"):
-    os.environ["HTTPS_PROXY"] = os.getenv("HTTPS_PROXY")
-if os.getenv("NO_PROXY"):
-    os.environ["NO_PROXY"] = os.getenv("NO_PROXY")
+http_proxy = os.getenv("HTTP_PROXY")
+if http_proxy:
+    os.environ["HTTP_PROXY"] = http_proxy
+https_proxy = os.getenv("HTTPS_PROXY")
+if https_proxy:
+    os.environ["HTTPS_PROXY"] = https_proxy
+no_proxy = os.getenv("NO_PROXY")
+if no_proxy:
+    os.environ["NO_PROXY"] = no_proxy
 
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
@@ -29,16 +32,18 @@ load_dotenv()
 class RAGChatbot:
     """Base class for RAG-enhanced Gaussian Filter chatbot."""
     
-    def __init__(self, repo_path: str = "../", language: str = "en"):
+    def __init__(self, repo_path: str = "../", language: str = "en", code_paths: Optional[List[str]] = None):
         """
         Initialize the RAG chatbot.
         
         Args:
             repo_path: Path to the repository
             language: Language for the chatbot (en or ja)
+            code_paths: List of specific paths to analyze (optional)
         """
         self.repo_path = repo_path
         self.language = language
+        self.code_paths = code_paths if code_paths else [repo_path]
         self.knowledge_base = KNOWLEDGE_BASE
         self.detailed_explanations = DETAILED_EXPLANATIONS
         self.greeting_shown = False
@@ -76,11 +81,12 @@ class RAGChatbot:
                 print("Warning: No vector index available. Running with limited capabilities.")
                 return
         
-        self.chain = ConversationalRetrievalChain.from_llm(
-            llm=self.llm,
-            retriever=self.vector_store.db.as_retriever(),
-            memory=self.memory
-        )
+        if self.vector_store.db:
+            self.chain = ConversationalRetrievalChain.from_llm(
+                llm=self.llm,
+                retriever=self.vector_store.db.as_retriever(),
+                memory=self.memory
+            )
         
     def setup_llm_azure(self):
         """Set up the Azure OpenAI language model and conversation chain."""
@@ -103,11 +109,12 @@ class RAGChatbot:
                     print("Warning: No vector index available. Running with limited capabilities.")
                     return
             
-            self.chain = ConversationalRetrievalChain.from_llm(
-                llm=self.llm,
-                retriever=self.vector_store.db.as_retriever(),
-                memory=self.memory
-            )
+            if self.vector_store.db:
+                self.chain = ConversationalRetrievalChain.from_llm(
+                    llm=self.llm,
+                    retriever=self.vector_store.db.as_retriever(),
+                    memory=self.memory
+                )
         except Exception as e:
             print(f"Error setting up Azure OpenAI: {e}")
             
@@ -120,14 +127,25 @@ class RAGChatbot:
             return
             
         print(f"Creating new vector index in {self.vector_store.persist_directory}")
-        loader = SourceCodeLoader(self.repo_path)
-        documents = loader.load_source_files()
         
-        if not documents:
+        code_loader = SourceCodeLoader(self.repo_path, self.code_paths)
+        code_documents = code_loader.load_source_files()
+        
+        try:
+            from wiki_document_loader import WikiDocumentLoader
+            wiki_loader = WikiDocumentLoader(self.repo_path)
+            wiki_documents = wiki_loader.load_wiki_info()
+            all_documents = code_documents + wiki_documents
+            print(f"Loaded {len(code_documents)} code documents and {len(wiki_documents)} wiki documents")
+        except ImportError:
+            print("WikiDocumentLoader not found, proceeding with only code documents")
+            all_documents = code_documents
+        
+        if not all_documents:
             print(f"Warning: No documents found in repository: {self.repo_path}")
             return
             
-        chunks = loader.split_documents(documents)
+        chunks = code_loader.split_documents(all_documents)
         
         if not chunks:
             print("Warning: No document chunks created.")
@@ -153,14 +171,14 @@ class RAGChatbot:
             Response string from the LLM
         """
         if not self.chain:
-            return None
+            return ""
             
         try:
             result = self.chain.invoke({"question": user_input})
             return result["answer"]
         except Exception as e:
             print(f"Error getting response with RAG: {e}")
-            return None
+            return ""
     
     def get_response_with_pattern_matching(self, user_input: str) -> str:
         """
@@ -172,7 +190,7 @@ class RAGChatbot:
         Returns:
             Response string from pattern matching
         """
-        raise NotImplementedError("Subclasses must implement this method.")
+        return ""
         
     def get_response_with_agent(self, user_input: str) -> str:
         """
@@ -190,7 +208,7 @@ class RAGChatbot:
             return self._count_code_lines()
             
         
-        return None
+        return ""
         
     def _is_line_count_question(self, user_input: str) -> bool:
         """Check if the question is about code line count."""
@@ -248,6 +266,67 @@ class RAGChatbot:
             
         return response
         
+    def _is_likely_in_vectorstore(self, user_input: str) -> bool:
+        """
+        Determine if a question is likely to be in the vector store.
+        
+        Args:
+            user_input: User's input text
+            
+        Returns:
+            True if question is likely to be in vector store, False otherwise
+        """
+        code_keywords = [
+            'code', 'repository', 'function', 'class', 'method', 'implementation',
+            'algorithm', 'structure', 'file', 'directory', 'module', 'コード', 'リポジトリ',
+            '関数', 'クラス', 'メソッド', '実装', 'アルゴリズム', '構造', 'ファイル',
+            'ディレクトリ', 'モジュール'
+        ]
+        
+        for keyword in code_keywords:
+            if keyword.lower() in user_input.lower():
+                return True
+                
+        return False
+        
+    def _calculate_response_reliability(self, question: str, response: str, response_type: str) -> float:
+        """
+        Calculate the reliability of a response.
+        
+        Args:
+            question: User's question
+            response: Response text
+            response_type: Type of response ('rag' or 'agent')
+            
+        Returns:
+            Reliability score between 0 and 1
+        """
+        base_reliability = {
+            "rag": 0.7,  # RAG is generally reliable for factual information
+            "agent": 0.6  # Agent is slightly less reliable but good for computations
+        }
+        
+        reliability = base_reliability.get(response_type, 0.5)
+        
+        if not response or len(response.strip()) < 10:
+            return 0.1  # Very short responses are unreliable
+            
+        if response_type == "rag":
+            if ('```' in response) or ('/' in response) or ('\\' in response):
+                reliability += 0.2
+                
+            if any(char.isdigit() for char in response):
+                reliability += 0.1
+                
+        elif response_type == "agent":
+            if self._is_line_count_question(question):
+                reliability += 0.3
+                
+            if any(char.isdigit() for char in response):
+                reliability += 0.2
+                
+        return min(reliability, 1.0)
+        
     def get_response(self, user_input: str) -> str:
         """
         Get response to user input.
@@ -258,20 +337,29 @@ class RAGChatbot:
         Returns:
             Response string
         """
-        rag_response = self.get_response_with_rag(user_input)
+        is_likely_in_vectorstore = self._is_likely_in_vectorstore(user_input)
         
-        if not rag_response:
-            pattern_response = self.get_response_with_pattern_matching(user_input)
+        rag_response = self.get_response_with_rag(user_input)
+        agent_response = self.get_response_with_agent(user_input)
+        pattern_response = self.get_response_with_pattern_matching(user_input)
+        
+        if is_likely_in_vectorstore and rag_response:
+            return rag_response
             
-            if not pattern_response:
-                agent_response = self.get_response_with_agent(user_input)
-                if agent_response:
-                    return agent_response
-                return pattern_response
-                
-            return pattern_response
+        if rag_response and agent_response:
+            rag_reliability = self._calculate_response_reliability(user_input, rag_response, "rag")
+            agent_reliability = self._calculate_response_reliability(user_input, agent_response, "agent")
             
-        return rag_response
+            if rag_reliability > agent_reliability:
+                return rag_response
+            else:
+                return agent_response
+        
+        if agent_response:
+            return agent_response
+        if rag_response:
+            return rag_response
+        return pattern_response
         
     def show_greeting(self):
         """Display the initial greeting message (to be implemented by subclasses)."""

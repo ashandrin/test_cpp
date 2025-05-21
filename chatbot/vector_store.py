@@ -7,12 +7,15 @@ import os
 from typing import List, Dict, Optional
 from pathlib import Path
 
-if os.getenv("HTTP_PROXY"):
-    os.environ["HTTP_PROXY"] = os.getenv("HTTP_PROXY")
-if os.getenv("HTTPS_PROXY"):
-    os.environ["HTTPS_PROXY"] = os.getenv("HTTPS_PROXY")
-if os.getenv("NO_PROXY"):
-    os.environ["NO_PROXY"] = os.getenv("NO_PROXY")
+http_proxy = os.getenv("HTTP_PROXY")
+if http_proxy:
+    os.environ["HTTP_PROXY"] = http_proxy
+https_proxy = os.getenv("HTTPS_PROXY")
+if https_proxy:
+    os.environ["HTTPS_PROXY"] = https_proxy
+no_proxy = os.getenv("NO_PROXY")
+if no_proxy:
+    os.environ["NO_PROXY"] = no_proxy
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_openai import OpenAIEmbeddings, AzureOpenAIEmbeddings
@@ -109,5 +112,6 @@ class VectorStore:
         if not self.db:
             if not self.load_existing_index():
                 raise ValueError("No index available. Please index documents first.")
-                
+        
+        assert self.db is not None, "Database should be initialized"
         return self.db.similarity_search(query, k=k)
